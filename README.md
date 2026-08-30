@@ -425,7 +425,8 @@ print(np.flipud(p_grid2))
 ```
 
 ## OUTPUT:
-![alt text](image.png)
+<img width="718" height="291" alt="Screenshot 2026-08-30 225345" src="https://github.com/user-attachments/assets/c46b5d82-78a9-40b4-b668-95b221624f0d" />
+
 
 
 ## RESULT:
