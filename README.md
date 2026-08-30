@@ -1,5 +1,5 @@
 # Exp - 6(AAI) - Solving a Stochastic Grid-World Markov Decision Process Using Value Iteration and Policy Iteration
-## By Dr. N SARAVANAN, TSML006,ASSISTANT PROFESSOR,AIML,SEC
+
 A compact Python implementation of two dynamic-programming methods for solving a stochastic grid-world Markov decision process (MDP):
 
 - **Value Iteration**
@@ -192,3 +192,241 @@ Edit these values near the top of the script to experiment with other MDPs:
 
 - Terminal-state utilities stay fixed at their assigned rewards.
 - The policy grid includes a label for every non-terminal coordinate, including the blocked coordinate. Since that cell cannot be entered, its displayed action is not part of the reachable environment.
+
+
+## PROGRAM:
+
+#### NAME :Sanjai S
+#### REGISTER NUMBER :212223230186
+```
+import numpy as np
+
+rows, cols = 3, 4
+
+R = np.full((rows, cols), -0.04)
+R[2, 3] = 1.0
+R[1, 3] = -1.0
+
+terminals = [(2, 3), (1, 3)]
+blocked = (1, 1)
+
+actions = ["UP", "DOWN", "LEFT", "RIGHT"]
+
+gamma = 1.0
+epsilon = 1e-4
+
+
+def get_next_state(r, c, action):
+    if action == "UP":
+        next_r, next_c = r + 1, c
+    elif action == "DOWN":
+        next_r, next_c = r - 1, c
+    elif action == "LEFT":
+        next_r, next_c = r, c - 1
+    else:
+        next_r, next_c = r, c + 1
+
+    if not (0 <= next_r < rows and 0 <= next_c < cols):
+        return r, c
+
+    if (next_r, next_c) == blocked:
+        return r, c
+
+    return next_r, next_c
+
+
+def get_action_distribution(action):
+    if action == "UP":
+        return "UP", "LEFT", "RIGHT"
+    elif action == "DOWN":
+        return "DOWN", "RIGHT", "LEFT"
+    elif action == "LEFT":
+        return "LEFT", "DOWN", "UP"
+    else:
+        return "RIGHT", "UP", "DOWN"
+
+
+def expected_utility(U, r, c, action):
+    intended, left, right = get_action_distribution(action)
+
+    ri, ci = get_next_state(r, c, intended)
+    rl, cl = get_next_state(r, c, left)
+    rr, cr = get_next_state(r, c, right)
+
+    return (
+        0.8 * U[ri, ci]
+        + 0.1 * U[rl, cl]
+        + 0.1 * U[rr, cr]
+    )
+
+
+def extract_policy(U):
+    policy = {}
+
+    for r in range(rows):
+        for c in range(cols):
+            if (r, c) == (2, 3):
+                policy[(r, c)] = "GOAL"
+            elif (r, c) == (1, 3):
+                policy[(r, c)] = "TRAP"
+            elif (r, c) == blocked:
+                policy[(r, c)] = "UP"
+            else:
+                policy[(r, c)] = max(
+                    actions,
+                    key=lambda action: expected_utility(U, r, c, action)
+                )
+
+    return policy
+
+
+def value_iteration(gamma=1.0, epsilon=1e-4):
+    U = np.zeros((rows, cols))
+
+    for r, c in terminals:
+        U[r, c] = R[r, c]
+
+    while True:
+        U_next = U.copy()
+        delta = 0
+
+        for r in range(rows):
+            for c in range(cols):
+
+                if (r, c) in terminals or (r, c) == blocked:
+                    continue
+
+                best_value = max(
+                    expected_utility(U, r, c, action)
+                    for action in actions
+                )
+
+                U_next[r, c] = R[r, c] + gamma * best_value
+
+                delta = max(
+                    delta,
+                    abs(U_next[r, c] - U[r, c])
+                )
+
+        U = U_next
+
+        if delta < epsilon:
+            break
+
+    return U, extract_policy(U)
+
+
+def policy_iteration(gamma=1.0, epsilon=1e-4):
+    U = np.zeros((rows, cols))
+
+    for r, c in terminals:
+        U[r, c] = R[r, c]
+
+    policy = {}
+
+    for r in range(rows):
+        for c in range(cols):
+
+            if (r, c) == (2, 3):
+                policy[(r, c)] = "GOAL"
+
+            elif (r, c) == (1, 3):
+                policy[(r, c)] = "TRAP"
+
+            else:
+                policy[(r, c)] = "UP"
+
+    while True:
+
+        while True:
+            U_next = U.copy()
+            delta = 0
+
+            for r in range(rows):
+                for c in range(cols):
+
+                    if (r, c) in terminals or (r, c) == blocked:
+                        continue
+
+                    action = policy[(r, c)]
+
+                    U_next[r, c] = (
+                        R[r, c]
+                        + gamma * expected_utility(U, r, c, action)
+                    )
+
+                    delta = max(
+                        delta,
+                        abs(U_next[r, c] - U[r, c])
+                    )
+
+            U = U_next
+
+            if delta < epsilon:
+                break
+
+        policy_stable = True
+
+        for r in range(rows):
+            for c in range(cols):
+
+                if (r, c) in terminals or (r, c) == blocked:
+                    continue
+
+                old_action = policy[(r, c)]
+
+                best_action = max(
+                    actions,
+                    key=lambda action:
+                    expected_utility(U, r, c, action)
+                )
+
+                policy[(r, c)] = best_action
+
+                if old_action != best_action:
+                    policy_stable = False
+
+        if policy_stable:
+            break
+
+    return U, policy
+
+
+U1, policy1 = value_iteration(gamma, epsilon)
+
+print("--- VALUE ITERATION ---")
+print("\nFinal Utility Table:")
+print(np.round(np.flipud(U1), 3))
+
+print("\nExtracted Policy Layout:")
+p_grid1 = np.empty((rows, cols), dtype=object)
+
+for r in range(rows):
+    for c in range(cols):
+        p_grid1[r, c] = policy1[(r, c)]
+
+print(np.flipud(p_grid1))
+
+
+U2, policy2 = policy_iteration(gamma, epsilon)
+
+print("\n\n--- POLICY ITERATION ---")
+print("\nFinal Utility Table:")
+print(np.round(np.flipud(U2), 3))
+
+print("\nExtracted Policy Layout:")
+p_grid2 = np.empty((rows, cols), dtype=object)
+
+for r in range(rows):
+    for c in range(cols):
+        p_grid2[r, c] = policy2[(r, c)]
+
+print(np.flipud(p_grid2))
+```
+
+## OUTPUT:
+![alt text](image.png)
+
+
+## RESULT:
+Thus, the Grid-World MDP was successfully solved using Value Iteration. The optimal utilities and policy were obtained, guiding the agent toward the goal while avoiding the trap.
